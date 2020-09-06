@@ -32,8 +32,9 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/Ingreso", methods= ["POST"])
+@app.route("/Ingreso", methods= ["GET","POST"])
 def Ingreso():
+    global data
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
@@ -49,10 +50,17 @@ def Ingreso():
             print(data[1])
             if data[1] == username and check_password_hash(data[2], password):
                 session["username"] = username #creo la cookie username y le agrego el valor del nombre de usuario, esto lo hago para verificar que el usuario este logueado y no entre a las paginas por url
-                return render_template("buscar.html", session=session)
+                return render_template("buscar.html",data=data)
             else:
                 flash("Contraseña INCORRECTA, verifique y vuelva a intentar.")
                 return render_template("index.html")
+    if request.method == "GET":
+        #vuelvo a cargar data con los datos del usuario
+        if "username" in session:
+            return render_template("buscar.html",data=data)
+        else:
+            flash("Debes loguearte primero")
+            return render_template("index.html")
 
 
 ##########################################################################
@@ -81,7 +89,62 @@ def Registro_usuario():
 
 
 
+##########################################################################
+#######################Administrar USUARIO################################
+##########################################################################
 
-    
+@app.route("/Usuarios", methods= ["GET","POST"])
+def Usuarios():
+    if request.method == "GET":
+        if "username" in session:
+            mysql = sqlite3.connect("./Proyecto.db")
+            cur=mysql.cursor()
+            cur.execute("SELECT * FROM usuarios")
+            data = cur.fetchall()
+            return render_template("Usuarios.html",data=data)
+        else:
+            flash("Debes loguearte primero")
+            return render_template("index.html")
+
+
+##########################################################################
+#######################Cambiar Permiso de USUARIO#########################
+##########################################################################
+
+@app.route("/Cambiar/<i>", methods= ["GET","POST"])
+def Cambiar(i):
+    if request.method == "POST":
+        permiso = request.form["permiso"]
+        mysql = sqlite3.connect("./Proyecto.db")
+        mysql.execute("""
+                     UPDATE usuarios
+                     SET permiso = ?
+                      WHERE id=?
+            """,(permiso,i))
+        mysql.commit()
+
+        mysql = sqlite3.connect("./Proyecto.db")
+        cur=mysql.cursor()
+        cur.execute("SELECT * FROM usuarios")
+        data = cur.fetchall()
+        return render_template("Usuarios.html",data=data)
+
+    if request.method == "GET":
+
+        flash("Debes loguearte primero")
+        return render_template("index.html")
+
+
+
+
+
+@app.route("/Logout", methods= ["GET"])
+def Logout():
+    if request.method == "GET":
+        session.pop("username", None)
+        flash("Has cerrado sesion!")
+        return render_template("index.html")
+
+
 if __name__ == "__main__":
     app.run(port = 3000, debug = True) #hacemos que se refresque solo
