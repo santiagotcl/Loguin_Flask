@@ -47,7 +47,6 @@ def Ingreso():
             return render_template("index.html")
         else:
             data=list(data[0])
-            print(data[1])
             if data[1] == username and check_password_hash(data[2], password):
                 session["username"] = username #creo la cookie username y le agrego el valor del nombre de usuario, esto lo hago para verificar que el usuario este logueado y no entre a las paginas por url
                 return render_template("buscar.html",data=data)
@@ -136,6 +135,29 @@ def Cambiar(i):
 
 
 
+##########################################################################
+############################ELIMINAR USUARIO##############################
+##########################################################################
+
+
+
+
+@app.route("/Eliminar/<string:id>")#recibo un parametro tipo string
+def elimclient(id):
+    mysql = sqlite3.connect("./Proyecto.db")
+    cur = mysql.cursor()
+    cur.execute("DELETE FROM usuarios WHERE id = ?", (id,))
+    mysql.commit() #guardo los cambios
+    flash("Usuario eliminado satifactoriamente") #envia mesajes entre vistas
+    cur.execute("SELECT * FROM usuarios")
+    data = cur.fetchall()
+    mysql.close
+    return render_template("Usuarios.html",data=data)
+
+
+##########################################################################
+##############################CERRAR SESION###############################
+##########################################################################
 
 
 @app.route("/Logout", methods= ["GET"])
