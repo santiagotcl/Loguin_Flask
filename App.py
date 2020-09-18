@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, url_for, redirect, flash, ses
 import sqlite3
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
 app=Flask(__name__)
 
@@ -12,6 +13,23 @@ app=Flask(__name__)
 #app.config["MYSQL_DB"] = "bbddlub" #le pido que se conecte a la base de datos prueba flask
 ##cuando pongo el puerto no anda
 
+class User(UserMixin):
+    def __init__(self, id, name, permiso):
+        self.id = id
+        self.name = name
+        self.permiso = permiso
+
+
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+@login_manager.user_loader
+def load_user(user_id):
+    for user in users:
+        if user.id == int(user_id):
+            return user
+    return None
 
 #get envia las peticiones a travez de la barra de direcciones, post no.
 #iniciamos sesion(guarda datos en una memoria para luego usarlos)
@@ -26,7 +44,7 @@ total=0.0#total en pesos de la compra
 #mysql.execute("INSERT INTO usuarios (username,password,permiso) VALUES (?,?,?)", 
 #        ("scuozzo",hashed_pw,"1"))
 #mysql.commit()
-
+users=[]
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -48,18 +66,23 @@ def Ingreso():
         else:
             data=list(data[0])
             if data[1] == username and check_password_hash(data[2], password):
-                session["username"] = username #creo la cookie username y le agrego el valor del nombre de usuario, esto lo hago para verificar que el usuario este logueado y no entre a las paginas por url
-                return render_template("buscar.html",data=data)
+                user = User(data[0], data[1], data[3])
+                users.append(user)
+                # Dejamos al usuario logueado
+                login_user(user, remember=True)
+                flash("the current user is " + current_user.name)
+                return render_template("buscar.html")
             else:
                 flash("Contraseña INCORRECTA, verifique y vuelva a intentar.")
                 return render_template("index.html")
     if request.method == "GET":
         #vuelvo a cargar data con los datos del usuario
-        if "username" in session:
-            return render_template("buscar.html",data=data)
-        else:
-            flash("Debes loguearte primero")
-            return render_template("index.html")
+        #if "username" in session:
+        flash("the current user is " + current_user.name)
+        return render_template("buscar.html")
+        #else:
+        flash("Debes loguearte primero")
+        return render_template("index.html")
 
 
 ##########################################################################
@@ -93,17 +116,14 @@ def Registro_usuario():
 ##########################################################################
 
 @app.route("/Usuarios", methods= ["GET","POST"])
+@login_required
 def Usuarios():
     if request.method == "GET":
-        if "username" in session:
-            mysql = sqlite3.connect("./Proyecto.db")
-            cur=mysql.cursor()
-            cur.execute("SELECT * FROM usuarios")
-            data = cur.fetchall()
-            return render_template("Usuarios.html",data=data)
-        else:
-            flash("Debes loguearte primero")
-            return render_template("index.html")
+        mysql = sqlite3.connect("./Proyecto.db")
+        cur=mysql.cursor()
+        cur.execute("SELECT * FROM usuarios")
+        data = cur.fetchall()
+        return render_template("Usuarios.html",data=data)
 
 
 ##########################################################################
@@ -149,9 +169,11 @@ def elimclient(id):
     cur.execute("DELETE FROM usuarios WHERE id = ?", (id,))
     mysql.commit() #guardo los cambios
     flash("Usuario eliminado satifactoriamente") #envia mesajes entre vistas
+    mysql.close
+    mysql = sqlite3.connect("./Proyecto.db")
+    cur=mysql.cursor()
     cur.execute("SELECT * FROM usuarios")
     data = cur.fetchall()
-    mysql.close
     return render_template("Usuarios.html",data=data)
 
 
@@ -163,10 +185,10 @@ def elimclient(id):
 @app.route("/Logout", methods= ["GET"])
 def Logout():
     if request.method == "GET":
-        session.pop("username", None)
+        logout_user()
         flash("Has cerrado sesion!")
         return render_template("index.html")
 
 
 if __name__ == "__main__":
-    app.run(port = 3000, debug = True) #hacemos que se refresque solo
+    app.run(host= '192.168.0.101', port = 3000, debug = True) #hacemos que se refresque solo

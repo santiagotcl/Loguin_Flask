@@ -21,7 +21,7 @@
 
     <h1>Usted ha Ingresado!</h1>
 
-    {% if data.3 < 2 %}
+    {% if current_user.permiso < 2 %}
     
     <a href="/Usuarios" method="POST"><button type="button" class="btn btn-primary" >Administrar usuarios</button></a>
     
